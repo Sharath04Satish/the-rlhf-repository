@@ -9,6 +9,7 @@ import gymnasium as gym
 import gym.error
 from gym import Env, logger
 from typing import Callable, Dict, List, Optional, Tuple, Union
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 
 try:
     import pygame
@@ -133,6 +134,7 @@ def collect_demos(
     episodes = 0
     total_reward = 0
     sas_pairs = []
+    video = VideoRecorder(env, "demo_1.mp4")
     while episodes < num_demos:
         if done:
             done = False
@@ -145,6 +147,7 @@ def collect_demos(
             steps += 1
             action = key_code_to_action.get(tuple(sorted(game.pressed_keys)), noop)
             prev_obs = obs
+            video.capture_frame()
             obs, rew, done, _, info = env.step(action)
             sas_pairs.append((prev_obs, action, obs))
             total_reward += rew
@@ -165,7 +168,11 @@ def collect_demos(
 
         pygame.display.flip()
         clock.tick(fps)
+
     pygame.quit()
+    video.close()
+    env.close()
+
     return sas_pairs
 
 
