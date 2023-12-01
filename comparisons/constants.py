@@ -1,2 +1,2 @@
-num_human_demonstrations_for_comparisons = 1
+num_human_demonstrations_for_comparisons = 5
 num_synthetic_demonstrations_for_comparisons = 10

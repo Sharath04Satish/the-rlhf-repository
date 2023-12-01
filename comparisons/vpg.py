@@ -92,13 +92,13 @@ def train(
             act = get_action(torch.as_tensor(obs, dtype=torch.float32))
             obs, rew, done, _ = env.step(act)
 
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            device = "cpu"
             torchified_state = torch.from_numpy(obs).float().to(device)
             # print("Trajectories", torchified_state.unsqueeze(0))
 
             if reward is not None:
                 # replace reward with predicted reward from neural net
-                device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                device = "cpu"
                 torchified_state = torch.from_numpy(obs).float().to(device)
                 r = reward.predict_reward(torchified_state.unsqueeze(0)).item()
                 rew = r
@@ -202,7 +202,7 @@ if __name__ == "__main__":
     else:
         # pass in parameters for trained reward network and train using that
         print("training on learned reward function")
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        device = "cpu"
         reward_net = Net()
         reward_net.load_state_dict(torch.load(args.reward_params))
         reward_net.to(device)

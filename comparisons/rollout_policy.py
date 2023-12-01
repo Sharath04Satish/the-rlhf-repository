@@ -80,7 +80,7 @@ if __name__ == "__main__":
     n_acts = env.action_space.n
     hidden_sizes = [32]
     policy = mlp(sizes=[obs_dim] + hidden_sizes + [n_acts])
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
     policy.load_state_dict(torch.load(checkpoint))
 
     returns = 0

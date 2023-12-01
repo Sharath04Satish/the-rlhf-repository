@@ -35,7 +35,7 @@ def generate_novice_demos(env, demos):
     obs_dim = env.observation_space.shape[0]
     n_acts = env.action_space.n
     hidden_sizes = [32]
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
 
     demonstrations = []
     demo_returns = []
@@ -51,29 +51,25 @@ def generate_novice_demos(env, demos):
     return demonstrations, demo_returns
 
 
-def create_training_data_human(demonstration_a, demonstration_b):
-    traj_a, returns_a = demonstration_a
-    traj_b, returns_b = demonstration_b
-
-    print(returns_a)
-
+def create_training_data_human(human_demonstrations):
     training_pairs = []
     training_labels = []
 
-    for _ in range(min(len(traj_a), len(traj_b))):
+    for _ in range(len(human_demonstrations)):
         ti = 0
         tj = 0
+
         # only add trajectories that are different returns
         while ti == tj:
             # pick two random demonstrations
-            ti = np.random.randint(len(traj_a))
-            tj = np.random.randint(len(traj_b))
+            ti = np.random.randint(len(human_demonstrations))
+            tj = np.random.randint(len(human_demonstrations))
         # create random partial trajs by finding random start frame and random skip frame
 
-        traj_i = traj_a[ti]
-        traj_j = traj_b[tj]
+        traj_i = human_demonstrations[ti][0]
+        traj_j = human_demonstrations[tj][0]
 
-        if returns_a > returns_b:
+        if human_demonstrations[ti][1] > human_demonstrations[tj][1]:
             label = 0
         else:
             label = 1
@@ -132,7 +128,7 @@ def learn_reward(
     checkpoint_dir,
 ):
     # check if gpu available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
 
     # We will use a cross entropy loss for pairwise preference learning
     loss_criterion = nn.CrossEntropyLoss()
@@ -186,22 +182,7 @@ if __name__ == "__main__":
         trajectories, traj_returns = get_demonstrations_with_returns(env, demos)
         human_trajectories.append((trajectories, traj_returns))
 
-    num_pairs = 20
-
-    demonstation_a_index = np.random.randint(len(human_trajectories))
-    demonstation_b_index = np.random.randint(len(human_trajectories))
-
-    demonstation_a = human_trajectories[demonstation_a_index]
-    demonstation_b = human_trajectories[demonstation_b_index]
-
-    traj_pairs, traj_labels = create_training_data_human(demonstation_a, demonstation_b)
-
-    # create pairwise preference data using ground-truth reward
-    # traj_pairs, traj_labels = create_training_data(
-    #     trajectories, traj_returns, num_pairs
-    # )
-
-    print(len(traj_pairs), len(traj_labels))
+    traj_pairs, traj_labels = create_training_data_human(human_trajectories)
 
     # TODO: hyper parameters that you may want to tweak or change
     num_iter = 100
@@ -210,7 +191,7 @@ if __name__ == "__main__":
 
     # Now we create a reward network and optimize it using the training data.
     # TODO: You will need to code up Net in utils.py
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cpu"
     reward_net = Net()
     reward_net.to(device)
 
