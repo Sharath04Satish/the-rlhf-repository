@@ -10,7 +10,7 @@ import numpy as np
 import torch.nn.functional as F
 from tqdm import tqdm
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"
 
 
 def collect_human_demos(num_demos):
@@ -48,14 +48,18 @@ def torchify_demos(sas_pairs):
 
     return obs_torch, acs_torch, obs2_torch
 
+
 def visualize_trajectory(env, obs):
     env.reset()
     for state in obs:
         env.render()
         env.step(state)
 
+
 def sample_comparisons(demos, num_comparisons=2):
-    comparison_indices = np.random.choice(len(demos), size=num_comparisons, replace=False)
+    comparison_indices = np.random.choice(
+        len(demos), size=num_comparisons, replace=False
+    )
     comparisons = [demos[i] for i in comparison_indices]
     return comparisons
 
@@ -192,8 +196,6 @@ if __name__ == "__main__":
 
     # process demos
     obs, acs, _ = torchify_demos(demos)
-
-
 
     # print(env.action_space, env.observation_space)
 
