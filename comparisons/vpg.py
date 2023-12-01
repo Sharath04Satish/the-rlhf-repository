@@ -52,7 +52,7 @@ def train(
 
 
 
-    # @Sharath This is the function that we need to modify to take in human input for training using comparisons
+    # @Sharath04Satish This is the function that we need to modify to take in human input for training using comparisons
 
 
     # make action selection function (outputs int actions, sampled from policy)
