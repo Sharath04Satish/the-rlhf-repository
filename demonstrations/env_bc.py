@@ -175,7 +175,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
     parser.add_argument(
         "--num_demos",
-        default=1,
+        default=3,
         type=int,
         help="number of rgb_array demonstrations to collect",
     )

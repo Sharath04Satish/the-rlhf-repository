@@ -7,7 +7,11 @@ from torch.optim import Adam
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+import warnings
 
+# Suppress the specific DeprecationWarning in Gym
+# Suppress all DeprecationWarnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 device = torch.device('cpu')
 
