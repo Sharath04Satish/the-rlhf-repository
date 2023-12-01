@@ -83,12 +83,19 @@ class Net(nn.Module):
         return return_value
 
 
-def collect_human_demos(num_demos):
+def collect_human_demos(num_demos, demo_type, index):
     mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 2}
 
     env = gym.make("MountainCar-v0", render_mode="rgb_array")
     state = env.reset()
-    demos = collect_demos(env, keys_to_action=mapping, num_demos=num_demos, noop=1)
+    demos = collect_demos(
+        env,
+        demo_type=demo_type,
+        index=index,
+        keys_to_action=mapping,
+        num_demos=num_demos,
+        noop=1,
+    )
 
     env.close()
 
@@ -97,6 +104,8 @@ def collect_human_demos(num_demos):
 
 def collect_demos(
     env: Env,
+    demo_type,
+    index,
     transpose: Optional[bool] = True,
     fps: Optional[int] = None,
     zoom: Optional[float] = None,
@@ -134,7 +143,9 @@ def collect_demos(
     episodes = 0
     total_reward = 0
     sas_pairs = []
-    video = VideoRecorder(env, "demo_1.mp4")
+    video = VideoRecorder(
+        env, "comparisons_data/{0}_demonstration_{1}.mp4".format(demo_type, index)
+    )
     while episodes < num_demos:
         if done:
             done = False

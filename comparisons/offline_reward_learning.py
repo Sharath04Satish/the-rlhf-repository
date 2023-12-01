@@ -6,8 +6,22 @@ import torch.nn.functional as F
 import time
 import numpy as np
 import random
-from rollout_policy import generate_rollout
+from rollout_policy import (
+    generate_rollout,
+    get_cumulative_rewards_from_human_demonstrations,
+)
 from utils import mlp, Net, collect_human_demos
+from constants import (
+    num_human_demonstrations_for_comparisons,
+    num_synthetic_demonstrations_for_comparisons,
+)
+
+
+def get_demonstrations_with_returns(env, demos):
+    episode, episode_returns = get_cumulative_rewards_from_human_demonstrations(
+        env, demos
+    )
+    return episode, episode_returns
 
 
 def generate_novice_demos(env, demos):
@@ -35,6 +49,39 @@ def generate_novice_demos(env, demos):
         demo_returns.append(ret)
 
     return demonstrations, demo_returns
+
+
+def create_training_data_human(demonstration_a, demonstration_b):
+    traj_a, returns_a = demonstration_a
+    traj_b, returns_b = demonstration_b
+
+    print(returns_a)
+
+    training_pairs = []
+    training_labels = []
+
+    for _ in range(min(len(traj_a), len(traj_b))):
+        ti = 0
+        tj = 0
+        # only add trajectories that are different returns
+        while ti == tj:
+            # pick two random demonstrations
+            ti = np.random.randint(len(traj_a))
+            tj = np.random.randint(len(traj_b))
+        # create random partial trajs by finding random start frame and random skip frame
+
+        traj_i = traj_a[ti]
+        traj_j = traj_b[tj]
+
+        if returns_a > returns_b:
+            label = 0
+        else:
+            label = 1
+
+        training_pairs.append((traj_i, traj_j))
+        training_labels.append(label)
+
+    return training_pairs, training_labels
 
 
 def create_training_data(trajectories, cum_returns, num_pairs):
@@ -133,20 +180,28 @@ def learn_reward(
 
 
 if __name__ == "__main__":
-    # env = gym.make("MountainCar-v0")
-
-    env, demos = collect_human_demos(2)
-    print(len(demos))
-    # print("Demos", demos)
+    human_trajectories = list()
+    for index in range(num_human_demonstrations_for_comparisons):
+        env, demos = collect_human_demos(1, "human", index + 1)
+        trajectories, traj_returns = get_demonstrations_with_returns(env, demos)
+        human_trajectories.append((trajectories, traj_returns))
 
     num_pairs = 20
-    # create synthetic trajectories for RLHF
-    trajectories, traj_returns = generate_novice_demos(env, demos)
+
+    demonstation_a_index = np.random.randint(len(human_trajectories))
+    demonstation_b_index = np.random.randint(len(human_trajectories))
+
+    demonstation_a = human_trajectories[demonstation_a_index]
+    demonstation_b = human_trajectories[demonstation_b_index]
+
+    traj_pairs, traj_labels = create_training_data_human(demonstation_a, demonstation_b)
 
     # create pairwise preference data using ground-truth reward
-    traj_pairs, traj_labels = create_training_data(
-        trajectories, traj_returns, num_pairs
-    )
+    # traj_pairs, traj_labels = create_training_data(
+    #     trajectories, traj_returns, num_pairs
+    # )
+
+    print(len(traj_pairs), len(traj_labels))
 
     # TODO: hyper parameters that you may want to tweak or change
     num_iter = 100
