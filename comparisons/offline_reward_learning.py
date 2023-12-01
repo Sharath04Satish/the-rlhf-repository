@@ -44,7 +44,6 @@ def generate_novice_demos(env, demos):
         policy = mlp(sizes=[obs_dim] + hidden_sizes + [n_acts])
         # policy.load_state_dict(torch.load(checkpoint))
         traj, ret = generate_rollout(None, env, demos)
-        # print("traj", traj)
         demonstrations.append(traj)
         demo_returns.append(ret)
 
@@ -103,8 +102,6 @@ def create_training_data(trajectories, cum_returns, num_pairs):
             label = 0
         else:
             label = 1
-        # print(cum_returns[ti], cum_returns[tj])
-        # print(label)
 
         training_pairs.append((traj_i, traj_j))
         training_labels.append(label)
@@ -184,18 +181,13 @@ if __name__ == "__main__":
 
     traj_pairs, traj_labels = create_training_data_human(human_trajectories)
 
-    # TODO: hyper parameters that you may want to tweak or change
     num_iter = 100
     lr = 0.001
     checkpoint = "./reward.params"  # where to save your reward function weights
 
-    # Now we create a reward network and optimize it using the training data.
-    # TODO: You will need to code up Net in utils.py
     device = "cpu"
     reward_net = Net()
     reward_net.to(device)
-
-    print("Reward nets", reward_net)
 
     import torch.optim as optim
 

@@ -227,7 +227,6 @@ class PlayableGame:
 
     def _get_video_size(self, zoom: Optional[float] = None) -> Tuple[int, int]:
         rendered = self.env.render()
-        print(rendered)
         if isinstance(rendered, List):
             rendered = rendered[-1]
         assert rendered is not None and isinstance(rendered, np.ndarray)
