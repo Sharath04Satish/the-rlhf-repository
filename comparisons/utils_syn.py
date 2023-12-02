@@ -28,7 +28,7 @@ class Net(nn.Module):
 
         # Define the number of nodes in each layer of the neural network.
         # This neural network has an input layer, two hidden layers and an output layer.
-        num_nodes_in_input_layer = 2
+        num_nodes_in_input_layer = 4
         num_nodes_in_hidden_layer_1 = 64
         num_nodes_in_hidden_layer_2 = 16
         num_nodes_in_output_layer = 1

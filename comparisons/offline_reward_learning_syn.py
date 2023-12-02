@@ -16,7 +16,7 @@ def generate_novice_demos(env):
         checkpoints.append("synthetic/policy_checkpoint" + str(i) + ".params")
 
     # make core of policy network
-    env = gym.make("MountainCar-v0", render_mode="rgb_array")
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
     env.reset()
     obs_dim = env.observation_space.shape[0]
     n_acts = env.action_space.n
@@ -133,7 +133,7 @@ def learn_reward(
 
 
 if __name__ == "__main__":
-    env = gym.make("MountainCar-v0", render_mode="rgb_array")
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
     env.reset()
 
     num_pairs = 20
@@ -146,8 +146,6 @@ if __name__ == "__main__":
     traj_pairs, traj_labels = create_training_data(
         trajectories, traj_returns, num_pairs
     )
-
-    print(traj_pairs[0][0], traj_labels)
 
     # TODO: hyper parameters that you may want to tweak or change
     num_iter = 100

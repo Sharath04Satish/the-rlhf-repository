@@ -13,10 +13,11 @@ from vpg import mlp
 def generate_rollout(policy, env, index, rendering=False):
     # make action selection function (outputs int action, sampled from policy)
     def get_action(policy, obs):
-        print("A", obs)
-        logits = policy(obs)
-        print(logits)
-        return Categorical(logits=logits).sample().item()
+        if obs.size() == 2:
+            logits = policy(obs)
+            return Categorical(logits=logits).sample().item()
+        else:
+            return 1
 
     # reset episode-specific variables
     obs = env.reset()  # first obs comes from starting distribution
@@ -37,7 +38,6 @@ def generate_rollout(policy, env, index, rendering=False):
             env.render()
         # act in the environment
         act = get_action(policy, torch.as_tensor(obs[0], dtype=torch.float32))
-        print()
         # video.capture_frame()
         obs, rew, done, _, _ = env.step(act)
         cum_ret += rew
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env_name", "--env", type=str, default="MountainCar-v0")
+    parser.add_argument("--env_name", "--env", type=str, default="CartPole-v1")
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--lr", type=float, default=1e-2)
     parser.add_argument(
