@@ -526,7 +526,7 @@ def collect_demos(
             print("total reward", total_reward)
             total_reward = 0
             episodes += 1
-            obs = env.reset(seed=seed)
+            obs = env.reset()[0]
             
         else:
             steps += 1
