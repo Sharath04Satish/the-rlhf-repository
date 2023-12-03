@@ -7,6 +7,7 @@ from torch.optim import Adam
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+from demonstrations.cartpole_bc import collect_human_demos, torchify_demos, train_policy, PolicyNetwork, evaluate_policy
 import warnings
 import math
 from typing import Optional, Union
@@ -15,13 +16,14 @@ from gym import logger, spaces
 from gym.envs.classic_control import utils
 from gym.error import DependencyNotInstalled
 
-# Suppress the specific DeprecationWarning in Gym
-# Suppress all DeprecationWarnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="teleop")
+
+
+
 
 
 # Custom CartPole environment
-# Custom cartpole environment
 class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     """
     ### Description
@@ -325,128 +327,68 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 device = torch.device('cpu')
 
 
-def collect_human_demos(num_demos):
-    mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 1}
-    # env = gym.make("CartPole-v1",render_mode='rgb_array', max_episode_steps=500) 
-    env= CartPoleEnv(render_mode='rgb_array')
-    demos = collect_demos(env, keys_to_action=mapping, num_demos=num_demos, noop=1)
-    return demos
-
-
-def torchify_demos(sas_pairs):
-    states = []
+def collect_random_interaction_data(num_iters):
+    state_next_state = []
     actions = []
-    next_states = []
-    
-    for s,a, s2 in sas_pairs:
-        states.append(s)
-        actions.append(a)
-        next_states.append(s2)
+    # env = gym.make('CartPole-v1')
+    env = CartPoleEnv(render_mode="rgb_array")
+    for _ in range(num_iters):
+        obs = env.reset()[0]
 
-    states[0] = states[0][0]
-    states = np.array(states)
-    actions = np.array(actions)
-    next_states = np.array(next_states)
+        done = False
+        while not done:
+            a = env.action_space.sample()
+            next_obs, reward, done, info, _ = env.step(a)
+            state_next_state.append(np.concatenate((obs,next_obs), axis=0))
+            actions.append(a)
+            obs = next_obs
+        env.close()
 
-    obs_torch = torch.from_numpy(np.array(states)).float().to(device)
-    # print(obs_torch)
-    obs2_torch = torch.from_numpy(np.array(next_states)).float().to(device)
-    # print(obs2_torch)
-    acs_torch = torch.from_numpy(np.array(actions)).long().to(device)
-    # print(acs_torch)
-
-    print()
-
-    return obs_torch, acs_torch, obs2_torch
-
-
-def train_policy(obs, acs, nn_policy, num_train_iters):
-    pi_optimizer = Adam(nn_policy.parameters(), lr=0.1)
-    #action space is discrete so our policy just needs to classify which action to take
-    #we typically train classifiers using a cross entropy loss
-    loss_criterion = nn.CrossEntropyLoss()
-    
-    # run BC using all the demos in one giant batch
-    for i in range(num_train_iters):
-        #zero out automatic differentiation from last time
-        pi_optimizer.zero_grad()
-        #run each state in batch through policy to get predicted logits for classifying action
-        pred_action_logits = nn_policy(obs)
-        #now compute loss by comparing what the policy thinks it should do with what the demonstrator didd
-        loss = loss_criterion(pred_action_logits, acs) 
-        # print("iteration", i, "bc loss", loss)
-        #back propagate the error through the network to figure out how update it to prefer demonstrator actions
-        loss.backward()
-        #perform update on policy parameters
-        pi_optimizer.step()
+    return np.array(state_next_state), np.array(actions)
 
 
 
-class PolicyNetwork(nn.Module):
+
+class InvDynamicsNetwork(nn.Module):
     '''
-        Simple neural network with two layers that maps a 2-d state to a prediction
-        over which of the three discrete actions should be taken.
-        The three outputs corresponding to the logits for a 3-way classification problem.
+        Neural network with that maps (s,s') state to a prediction
+        over which of the three discrete actions was taken.
+        The network should have three outputs corresponding to the logits for a 3-way classification problem.
 
     '''
-    def __init__(self):
+    def __init__(self, states):
         super().__init__()
 
-        #This layer has 2 inputs corresponding to car position and velocity
-        self.fc1 = nn.Linear(4, 8)  
-        #This layer has three outputs corresponding to each of the three discrete actions
-        self.fc2 = nn.Linear(8, 2)  
+        #This network should take in 4 inputs corresponding to car position and velocity in s and s'
+        # and have 3 outputs corresponding to the three different actions
 
+        #################
+        #TODO:
+        #################
 
+        self.input_size = states.size()[1]
+        self.hidden_size = 8
+        self.output_size = 2
+
+        self.hidden = nn.Linear(self.input_size, self.hidden_size)
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        self.output = nn.Linear(self.hidden_size, self.output_size)
 
     def forward(self, x):
-        #this method performs a forward pass through the network, applying a non-linearity (ReLU) on the 
-        #outputs of the first layer
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
+        #this method performs a forward pass through the network
+        ###############
+        #TODO:
+        ###############
 
+        x = self.hidden(x)
+        x = self.relu(x)
+        # x = self.sigmoid(x)
+        x = self.output(x)
+
+        return x
     
 
-#evaluate learned policy
-def evaluate_policy(pi, num_evals, human_render=True):
-    if human_render:
-        env = gym.make("CartPole-v1",render_mode='human', max_episode_steps=500) 
-    else:
-        env = gym.make("CartPole-v1", max_episode_steps=500) 
-
-    policy_returns = []
-    for i in range(num_evals):
-        done = False
-        total_reward = 0
-        obs = env.reset()[0]
-        while not done:
-            #take the action that the network assigns the highest logit value to
-            #Note that first we convert from numpy to tensor and then we get the value of the 
-            #argmax using .item() and feed that into the environment
-
-            print(obs)
-
-            # obs_array = obs[0][:2]  # Assuming the first element is a tuple with 2 elements, take the first element
-            # obs_tensor = torch.from_numpy(obs_array).unsqueeze(0).float()
-            # action = torch.argmax(pi(obs_tensor)).item()
-
-            action = torch.argmax(pi(torch.from_numpy(obs).unsqueeze(0))).item()
-            
-            # obs_array = np.concatenate(obs, axis=-1)  # Concatenate along the last axis
-            # obs_tensor = torch.from_numpy(obs_array).unsqueeze(0).float()
-            # action = torch.argmax(pi(obs_tensor)).item()
-
-            # print(action)
-            obs, rew, done, info, _ = env.step(action)
-            # print(obs)
-            total_reward += rew
-        print("reward for evaluation", i, total_reward)
-        policy_returns.append(total_reward)
-
-    print("average policy return", np.mean(policy_returns))
-    print("min policy return", np.min(policy_returns))
-    print("max policy return", np.max(policy_returns))
 
 
 if __name__ == "__main__":
@@ -457,14 +399,68 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+
+    #collect random interaction data
+    num_interactions = 50
+    s_s2, acs = collect_random_interaction_data(num_interactions)
+    #put the data into tensors for feeding into torch
+    s_s2_torch = torch.from_numpy(np.array(s_s2)).float().to(device)
+    a_torch = torch.from_numpy(np.array(acs)).long().to(device)
+
+    # print(s_s2_torch.size())
+
+    #initialize inverse dynamics model
+    inv_dyn = InvDynamicsNetwork(s_s2_torch)  #TODO: need to fill in the blanks in this method
+    ##################
+    #TODO: you may need to tune the learning rate some
+    ##################
+    learning_rate = 0.5
+    optimizer = Adam(inv_dyn.parameters(), lr=learning_rate)
+    #action space is discrete so our policy just needs to classify which action to take
+    #we typically train classifiers using a cross entropy loss
+    loss_criterion = nn.CrossEntropyLoss()
+    
+    # train inverse dynamics model in one big batch
+    ####################
+    #TODO you may need to tune the num_train_iters
+    ####################
+    num_train_iters = 1000  #number of times to run gradient descent on training data
+    for i in range(num_train_iters):
+        #zero out automatic differentiation from last time
+        optimizer.zero_grad()
+        #run each state in batch through policy to get predicted logits for classifying action
+        pred_action_logits = inv_dyn(s_s2_torch)
+        #now compute loss by comparing what the policy thinks it should do with what the demonstrator didd
+        loss = loss_criterion(pred_action_logits, a_torch) 
+        # print("iteration", i, "bc loss", loss)
+        #back propagate the error through the network to figure out how update it to prefer demonstrator actions
+        loss.backward()
+        #perform update on policy parameters
+        optimizer.step()
+
+    #check performance for debugging
+    outputs = inv_dyn(s_s2_torch[:10])
+    _, predicted = torch.max(outputs, 1)
+    print("checking predictions on first 10 actions from random interaction data")
+    print("predicted actions", predicted)
+    print("actual actions", acs[:10])
+
     #collect human demos
     demos = collect_human_demos(args.num_demos)
 
     #process demos
-    obs, acs, _ = torchify_demos(demos)
-    # print(obs.shape[0])
+    obs, acs_true, obs2 = torchify_demos(demos)
 
-    #train policy
+    #estimate actions
+    state_trans = torch.cat((obs, obs2), dim = 1)
+    outputs = inv_dyn(state_trans)
+    _, acs = torch.max(outputs, 1)
+    #check accuracy on demos for debugging
+    print("checking predicted demonstrator actions with actual actions from demonstrations")
+    print("predicted", acs[:20])
+    print("actual", acs_true[:20])
+
+    #train policy using predicted actions for states
     pi = PolicyNetwork()
     train_policy(obs, acs, pi, args.num_bc_iters)
 
