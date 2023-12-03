@@ -263,7 +263,7 @@ def play(
         else:
             action = key_code_to_action.get(tuple(sorted(game.pressed_keys)), noop)
             prev_obs = obs
-            obs, rew, done, info, _ = env.step(action)
+            obs, rew, done, info = env.step(action)
             total_reward += rew
             if callback is not None:
                 callback(prev_obs, obs, action, rew, done, info)

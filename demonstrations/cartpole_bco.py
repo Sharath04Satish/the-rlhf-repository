@@ -7,7 +7,7 @@ from torch.optim import Adam
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
-from demonstrations.cartpole_bc import collect_human_demos, torchify_demos, train_policy, PolicyNetwork, evaluate_policy
+from cartpole_bc import collect_human_demos, torchify_demos, train_policy, PolicyNetwork, evaluate_policy
 import warnings
 import math
 from typing import Optional, Union

@@ -327,7 +327,7 @@ device = torch.device('cpu')
 def collect_human_demos(num_demos):
     mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 1}
     # env = gym.make("CartPole-v1",render_mode='rgb_array', max_episode_steps=500) 
-    env= CartPoleEnv(render_mode='rgb_array')
+    env = CartPoleEnv(render_mode='rgb_array')
     demos = collect_demos(env, keys_to_action=mapping, num_demos=num_demos, noop=1)
     return demos
 
