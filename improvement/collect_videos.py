@@ -3,7 +3,8 @@ import torch.nn as nn
 from torch.optim import Adam
 import numpy as np
 import pygame
-import gymnasium as gym
+# import gymnasium as gym
+import gym
 import gym.error
 from gym import Env, logger
 from typing import Callable, Dict, List, Optional, Tuple, Union
@@ -23,7 +24,7 @@ except ImportError:
 def collect_human_demos(num_demos, demo_type, index):
     mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 2}
 
-    env = gym.make("MountainCar-v0", render_mode="rgb_array")
+    env = gym.make("CartPole-v0", render_mode="rgb_array")
     state = env.reset()
     demos = collect_demos(
         env,
@@ -81,7 +82,7 @@ def collect_demos(
     total_reward = 0
     sas_pairs = ["{0}_video_{1}.mp4".format(demo_type, index)]
     video = VideoRecorder(
-        env, "/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data{0}_video_{1}.mp4".format(demo_type, index)
+        env, "/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data/{0}_video_{1}.mp4".format(demo_type, index)
     )
     while episodes < num_demos:
         if done:
@@ -96,7 +97,7 @@ def collect_demos(
             action = key_code_to_action.get(tuple(sorted(game.pressed_keys)), noop)
             prev_obs = obs
             video.capture_frame()
-            obs, rew, done, info = env.step(action)
+            obs, rew, done, info, _ = env.step(action)
             sas_pairs.append((prev_obs, action, obs))
             total_reward += rew
             if callback is not None:
@@ -210,5 +211,11 @@ class PlayableGame:
 if __name__ == "__main__":
 
     sas_pairs = []
-    for i in range(20):
+    for i in range(5):
         sas_pairs.append(collect_human_demos(1, "improvement", i))
+
+    print(sas_pairs)
+    file = open('/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data/improvement_sas.txt','w')
+    for x in sas_pairs:
+        file.write(x+"\n")
+    file.close()
