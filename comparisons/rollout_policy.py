@@ -5,11 +5,11 @@ from torch.optim import Adam
 import numpy as np
 import gym
 from gym.spaces import Discrete, Box
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 from vpg import mlp
 
 
-# execute the policy to generate one rollout and keep track of performance
-def generate_rollout(policy, env, demos, rendering=False):
+def generate_rollout_1(policy, env, index, rendering=False):
     # make action selection function (outputs int action, sampled from policy)
     def get_action(policy, obs):
         logits = policy(obs)
@@ -17,40 +17,65 @@ def generate_rollout(policy, env, demos, rendering=False):
 
     # reset episode-specific variables
     obs = env.reset()  # first obs comes from starting distribution
+    if type(obs) is tuple:
+        obs = obs[0]
     done = False  # signal from environment that episode is over
     ep_rews = []  # list for rewards accrued throughout ep
 
     cum_ret = 0
     obs_traj = []
-    human_actions = [action for _, action, _ in demos]
+
+    video = VideoRecorder(
+        env, "comparisons_data/{0}_demonstration_{1}.mp4".format("synthetic", index)
+    )
+
     # collect experience by acting in the environment with current policy
-    # while not done:
-    for action in human_actions:
+    while not done:
         # rendering
         if rendering:
             env.render()
         # act in the environment
-        # act = get_action(policy, torch.as_tensor(obs, dtype=torch.float32))
-
-        obs, rew, done, _, _ = env.step(action)
+        act = get_action(policy, torch.as_tensor(obs, dtype=torch.float32))
+        if type(obs) is tuple:
+            obs = obs[0]
+        obs, rew, done, _, _ = env.step(act)
+        video.capture_frame()
         cum_ret += rew
         obs_traj.append(obs)
+
+    video.close()
+    env.close()
 
     return obs_traj, cum_ret
 
 
-def get_cumulative_rewards_from_human_demonstrations(env, demos, rendering=False):
-    obs = env.reset()
+# execute the policy to generate one rollout and keep track of performance
+def generate_rollout(policy, env, rendering=False):
+    # make action selection function (outputs int action, sampled from policy)
+    def get_action(policy, obs):
+        logits = policy(obs)
+        return Categorical(logits=logits).sample().item()
+
+    # reset episode-specific variables
+    obs = env.reset()  # first obs comes from starting distribution
+    if type(obs) is tuple:
+        obs = obs[0]
+    done = False  # signal from environment that episode is over
+    ep_rews = []  # list for rewards accrued throughout ep
 
     cum_ret = 0
     obs_traj = []
-    human_actions = [action for _, action, _ in demos]
-
-    for action in human_actions:
+    # collect experience by acting in the environment with current policy
+    while not done:
+        # rendering
         if rendering:
             env.render()
 
-        obs, rew, _, _, _ = env.step(action)
+        if type(obs) is tuple:
+            obs = obs[0]
+        # act in the environment
+        act = get_action(policy, torch.as_tensor(obs, dtype=torch.float32))
+        obs, rew, done, _, _ = env.step(act)
         cum_ret += rew
         obs_traj.append(obs)
 
@@ -61,8 +86,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--env_name", "--env", type=str, default="MountainCar-v0")
-    parser.add_argument("--env_name", "--env", type=str, default="MountainCar-v0")
+    parser.add_argument("--env_name", "--env", type=str, default="CartPole-v1")
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--lr", type=float, default=1e-2)
     parser.add_argument(
@@ -80,12 +104,12 @@ if __name__ == "__main__":
     n_acts = env.action_space.n
     hidden_sizes = [32]
     policy = mlp(sizes=[obs_dim] + hidden_sizes + [n_acts])
-    device = "cpu"
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     policy.load_state_dict(torch.load(checkpoint))
 
     returns = 0
     for i in range(args.num_rollouts):
-        _, cum_ret = generate_rollout(policy, env, [], rendering=args.render)
+        _, cum_ret = generate_rollout(policy, env, rendering=args.render)
         print("cumulative return", cum_ret)
         returns += cum_ret
     print("average return", returns / args.num_rollouts)

@@ -6,8 +6,13 @@ import torch.nn.functional as F
 import time
 import numpy as np
 import random
-from rollout_policy_syn import generate_rollout
+from rollout_policy_syn import (
+    generate_rollout,
+    generate_rollout_ppo_sgd,
+    generate_rollout_1,
+)
 from utils_syn import mlp, Net
+from random import choice
 
 
 def generate_novice_demos(env):
@@ -29,7 +34,8 @@ def generate_novice_demos(env):
     for index, checkpoint in enumerate(checkpoints):
         policy = mlp(sizes=[obs_dim] + hidden_sizes + [n_acts])
         policy.load_state_dict(torch.load(checkpoint))
-        traj, ret = generate_rollout(policy, env, index + 1)
+        traj, ret = generate_rollout_1(policy, env, index + 1)
+        # traj, ret = generate_rollout_ppo_sgd(index + 1)
         print("traj ground-truth return", ret)
         demonstrations.append(traj)
         demo_returns.append(ret)
@@ -56,7 +62,9 @@ def create_training_data(trajectories, cum_returns, num_pairs):
         traj_i = trajectories[ti]
         traj_j = trajectories[tj]
 
-        if cum_returns[ti] > cum_returns[tj]:
+        comparison_selection = choice([ti, tj])
+
+        if comparison_selection == ti:
             label = 0
         else:
             label = 1

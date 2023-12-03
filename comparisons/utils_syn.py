@@ -45,12 +45,12 @@ class Net(nn.Module):
 
         # Second hidden layer to the output layer.
         self.output = nn.Linear(num_nodes_in_hidden_layer_2, num_nodes_in_output_layer)
-        self.activation3 = nn.Sigmoid()
+        self.activation5 = nn.Sigmoid()
 
     def forward(self, input_observation):
         input_observation = self.activation1(self.linear1(input_observation))
         input_observation = self.activation2(self.linear2(input_observation))
-        input_observation = self.activation3(self.output(input_observation))
+        input_observation = self.activation5(self.output(input_observation))
 
         return input_observation
 

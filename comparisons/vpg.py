@@ -17,9 +17,8 @@ def reward_to_go(rews):
     return rtgs
 
 
-# function to train a vanilla policy gradient agent. By default designed to work with Cartpole
+# function to train a vanilla policy gradient agent. By default designed to work with Acrobot
 def train(
-    # env_name="CartPole-v1",
     env_name="CartPole-v1",
     hidden_sizes=[32],
     lr=1e-2,
@@ -50,8 +49,6 @@ def train(
         logits = logits_net(obs)
         return Categorical(logits=logits)
 
-    # @Sharath04Satish This is the function that we need to modify to take in human input for training using comparisons
-
     # make action selection function (outputs int actions, sampled from policy)
     def get_action(obs):
         return get_policy(obs).sample().item()
@@ -75,7 +72,8 @@ def train(
 
         # reset episode-specific variables
         obs = env.reset()  # first obs comes from starting distribution
-        obs = obs[0]
+        if type(obs) is tuple:
+            obs = obs[0]
         done = False  # signal from environment that episode is over
         ep_rews = []  # list for rewards accrued throughout ep
 
@@ -87,47 +85,49 @@ def train(
             # rendering
             if (not finished_rendering_this_epoch) and render:
                 env.render()
-            if type(obs) is not tuple:
-                # save obs
-                batch_obs.append(obs.copy())
 
-                # act in the environment
-                act = get_action(torch.as_tensor(obs, dtype=torch.float32))
-                obs, rew, done, _, _ = env.step(act)
+            if type(obs) is tuple:
+                obs = obs[0]
+            # save obs
+            batch_obs.append(obs.copy())
 
-                device = "cpu"
+            # act in the environment
+            act = get_action(torch.as_tensor(obs, dtype=torch.float32))
+            obs, rew, done, _, _ = env.step(act)
+
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+            torchified_state = torch.from_numpy(obs).float().to(device)
+            # print("Trajectories", torchified_state.unsqueeze(0))
+
+            if reward is not None:
+                # replace reward with predicted reward from neural net
+                device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
                 torchified_state = torch.from_numpy(obs).float().to(device)
-                # print("Trajectories", torchified_state.unsqueeze(0))
+                r = reward.predict_reward(torchified_state.unsqueeze(0)).item()
+                rew = r
 
-                if reward is not None:
-                    # replace reward with predicted reward from neural net
-                    device = "cpu"
-                    torchified_state = torch.from_numpy(obs).float().to(device)
-                    r = reward.predict_reward(torchified_state.unsqueeze(0)).item()
-                    rew = r
+            # save action, reward
+            batch_acts.append(act)
+            ep_rews.append(rew)
 
-                # save action, reward
-                batch_acts.append(act)
-                ep_rews.append(rew)
+            if done:
+                # if episode is over, record info about episode
+                ep_ret, ep_len = sum(ep_rews), len(ep_rews)
+                batch_rets.append(ep_ret)
+                batch_lens.append(ep_len)
 
-                if done:
-                    # if episode is over, record info about episode
-                    ep_ret, ep_len = sum(ep_rews), len(ep_rews)
-                    batch_rets.append(ep_ret)
-                    batch_lens.append(ep_len)
+                # the weight for each logprob(a_t|s_t) is reward-to-go from t
+                batch_weights += list(reward_to_go(ep_rews))
 
-                    # the weight for each logprob(a_t|s_t) is reward-to-go from t
-                    batch_weights += list(reward_to_go(ep_rews))
+                # reset episode-specific variables
+                obs, done, ep_rews = env.reset(), False, []
 
-                    # reset episode-specific variables
-                    obs, done, ep_rews = env.reset(), False, []
+                # won't render again this epoch
+                finished_rendering_this_epoch = True
 
-                    # won't render again this epoch
-                    finished_rendering_this_epoch = True
-
-                    # end experience loop if we have enough of it
-                    if len(batch_obs) > batch_size:
-                        break
+                # end experience loop if we have enough of it
+                if len(batch_obs) > batch_size:
+                    break
 
         # take a single policy gradient update step
         optimizer.zero_grad()
@@ -205,7 +205,7 @@ if __name__ == "__main__":
     else:
         # pass in parameters for trained reward network and train using that
         print("training on learned reward function")
-        device = "cpu"
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         reward_net = Net()
         reward_net.load_state_dict(torch.load(args.reward_params))
         reward_net.to(device)
