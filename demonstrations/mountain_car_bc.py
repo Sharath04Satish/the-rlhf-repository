@@ -17,8 +17,8 @@ device = torch.device('cpu')
 
 
 def collect_human_demos(num_demos):
-    mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 2}
-    env = gym.make("MountainCar-v0",render_mode='single_rgb_array') 
+    mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 1}
+    env = gym.make("CartPole-v1",render_mode='rgb_array', max_episode_steps=500) 
     demos = collect_demos(env, keys_to_action=mapping, num_demos=num_demos, noop=1)
     return demos
 
@@ -27,18 +27,25 @@ def torchify_demos(sas_pairs):
     states = []
     actions = []
     next_states = []
+    
     for s,a, s2 in sas_pairs:
         states.append(s)
         actions.append(a)
         next_states.append(s2)
 
+    states[0] = states[0][0]
     states = np.array(states)
     actions = np.array(actions)
     next_states = np.array(next_states)
 
     obs_torch = torch.from_numpy(np.array(states)).float().to(device)
+    # print(obs_torch)
     obs2_torch = torch.from_numpy(np.array(next_states)).float().to(device)
+    # print(obs2_torch)
     acs_torch = torch.from_numpy(np.array(actions)).long().to(device)
+    # print(acs_torch)
+
+    print()
 
     return obs_torch, acs_torch, obs2_torch
 
@@ -76,9 +83,9 @@ class PolicyNetwork(nn.Module):
         super().__init__()
 
         #This layer has 2 inputs corresponding to car position and velocity
-        self.fc1 = nn.Linear(2, 8)  
+        self.fc1 = nn.Linear(4, 8)  
         #This layer has three outputs corresponding to each of the three discrete actions
-        self.fc2 = nn.Linear(8, 3)  
+        self.fc2 = nn.Linear(8, 2)  
 
 
 
@@ -94,22 +101,35 @@ class PolicyNetwork(nn.Module):
 #evaluate learned policy
 def evaluate_policy(pi, num_evals, human_render=True):
     if human_render:
-        env = gym.make("MountainCar-v0",render_mode='human') 
+        env = gym.make("CartPole-v1",render_mode='human', max_episode_steps=500) 
     else:
-        env = gym.make("MountainCar-v0") 
+        env = gym.make("CartPole-v1", max_episode_steps=500) 
 
     policy_returns = []
     for i in range(num_evals):
         done = False
         total_reward = 0
-        obs = env.reset()
+        obs = env.reset()[0]
         while not done:
             #take the action that the network assigns the highest logit value to
             #Note that first we convert from numpy to tensor and then we get the value of the 
             #argmax using .item() and feed that into the environment
+
+            print(obs)
+
+            # obs_array = obs[0][:2]  # Assuming the first element is a tuple with 2 elements, take the first element
+            # obs_tensor = torch.from_numpy(obs_array).unsqueeze(0).float()
+            # action = torch.argmax(pi(obs_tensor)).item()
+
             action = torch.argmax(pi(torch.from_numpy(obs).unsqueeze(0))).item()
+            
+            # obs_array = np.concatenate(obs, axis=-1)  # Concatenate along the last axis
+            # obs_tensor = torch.from_numpy(obs_array).unsqueeze(0).float()
+            # action = torch.argmax(pi(obs_tensor)).item()
+
             # print(action)
-            obs, rew, done, info = env.step(action)
+            obs, rew, done, info, _ = env.step(action)
+            # print(obs)
             total_reward += rew
         print("reward for evaluation", i, total_reward)
         policy_returns.append(total_reward)
@@ -132,6 +152,7 @@ if __name__ == "__main__":
 
     #process demos
     obs, acs, _ = torchify_demos(demos)
+    # print(obs.shape[0])
 
     #train policy
     pi = PolicyNetwork()

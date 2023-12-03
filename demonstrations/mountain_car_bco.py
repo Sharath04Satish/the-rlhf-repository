@@ -18,14 +18,14 @@ device = torch.device('cpu')
 def collect_random_interaction_data(num_iters):
     state_next_state = []
     actions = []
-    env = gym.make('MountainCar-v0')
+    env = gym.make('CartPole-v1')
     for _ in range(num_iters):
         obs = env.reset()
 
         done = False
         while not done:
             a = env.action_space.sample()
-            next_obs, reward, done, info = env.step(a)
+            next_obs, reward, done, info, _ = env.step(a)
             state_next_state.append(np.concatenate((obs,next_obs), axis=0))
             actions.append(a)
             obs = next_obs

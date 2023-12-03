@@ -16,7 +16,7 @@ device = "cpu"
 def collect_human_demos(num_demos):
     mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 2}
 
-    env = gym.make("MountainCar-v0", render_mode="rgb_array")
+    env = gym.make("Acrobot-v1", render_mode="rgb_array")
     state = env.reset()
     demos = collect_demos(env, keys_to_action=mapping, num_demos=num_demos, noop=1)
     env.close()
