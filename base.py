@@ -39,7 +39,7 @@ if __name__ == "__main__":
     # Demonstrations
     if feedback_type == "D":
         # Code to call demonstrations and BCO
-        subprocess.call(["python", "demonstrations/mountain_car_bc.py"])
+        subprocess.call(["python", "demonstrations/cartpole_bco.py"])
 
     # Comparisons
     elif feedback_type == "C":
