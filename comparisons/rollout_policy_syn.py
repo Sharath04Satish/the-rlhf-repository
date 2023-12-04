@@ -20,7 +20,10 @@ def generate_rollout_ppo_sgd(index):
     vec_env = make_vec_env("CartPole-v1")
 
     video = VideoRecorder(
-        vec_env, "comparisons_data/{0}_demonstration_{1}.mp4".format("synthetic", index)
+        vec_env,
+        "../web_app/static/comparisons_data/{0}_demonstration_{1}.mp4".format(
+            "synthetic", index
+        ),
     )
 
     model = PPO("MlpPolicy", vec_env, verbose=1)
@@ -63,7 +66,10 @@ def generate_rollout_1(policy, env, index, rendering=False):
     obs_traj = []
 
     video = VideoRecorder(
-        env, "comparisons_data/{0}_demonstration_{1}.mp4".format("synthetic", index)
+        env,
+        "../web_app/static/comparisons_data/{0}_demonstration_{1}.mp4".format(
+            "synthetic", index
+        ),
     )
 
     # collect experience by acting in the environment with current policy
@@ -77,10 +83,10 @@ def generate_rollout_1(policy, env, index, rendering=False):
             act = get_action(policy, torch.as_tensor(obs, dtype=torch.float32))
             # print(obs)
             video.capture_frame()
-            obs, rew, done, a = env.step(act)
+            obs, rew, done, _, _ = env.step(act)
             # print(rew, done, a, b)
             cum_ret += rew
-            obs_traj.append(obs)
+            obs_traj.append(obs.tolist())
 
     video.close()
     env.close()

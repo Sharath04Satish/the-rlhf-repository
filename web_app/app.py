@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request
 from constants import num_synthetic_demonstrations
 from random import choice, randint
+import json
 
 app = Flask(__name__)
 
 counter = 1
-# txt_file = open("comparisons_preferences", "w")
+txt_file = open("../comparisons/data/comparisons_preferences.txt", "w")
 preferences = list()
 
 
@@ -69,10 +70,7 @@ def handle_comparison_inputs():
         counter += 1
         if request.method == "POST":
             button_value = request.form.get("instance")
-            print("Clicked button:", button_value)
-
-            # with open("comparisons_preferences.txt", "a") as txt_file:
-            #     txt_file.write(button_value + "\n")
+            print("Clicked button:", tuple(button_value))
 
             preferences.append(button_value)
 
@@ -81,4 +79,8 @@ def handle_comparison_inputs():
                 comparison_videos=get_comparison_videos(),
             )
     else:
-        return "Thank you for your inputs, {0}".format(preferences)
+        with open("../comparisons/data/comparisons_preferences.json", "w") as data_file:
+            json_data = {"preferences": preferences}
+            json.dump(json_data, data_file)
+
+        return "Thank you for your inputs. Please run integrations.py to create the training data and learn a reward function."
