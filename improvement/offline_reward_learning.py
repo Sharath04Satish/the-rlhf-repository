@@ -8,30 +8,22 @@ import numpy as np
 import random
 from rollout_policy import (
     generate_rollout,
-    get_cumulative_rewards_from_human_demonstrations,
+    generate_rollout_ppo_sgd,
+    generate_rollout_1,
 )
-from utils import mlp, Net, collect_human_demos
-from constants import (
-    num_human_demonstrations_for_comparisons,
-    num_synthetic_demonstrations_for_comparisons,
-)
+from utils import mlp, Net
+from random import choice
+import json
 
 
-def get_demonstrations_with_returns(env, demos):
-    episode, episode_returns = get_cumulative_rewards_from_human_demonstrations(
-        env, demos
-    )
-    return episode, episode_returns
-
-
-def generate_novice_demos(env, demos):
+def generate_novice_demos(env):
     checkpoints = []
     for i in range(10):
-        checkpoints.append("./synthetic/policy_checkpoint" + str(i) + ".params")
+        checkpoints.append("synthetic/policy_checkpoint" + str(i) + ".params")
 
     # make core of policy network
-    # env = gym.make("MountainCar-v0")
-    env = gym.make("MountainCar-v0", render_mode="rgb_array")
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
+    env.reset()
     obs_dim = env.observation_space.shape[0]
     n_acts = env.action_space.n
     hidden_sizes = [32]
@@ -40,43 +32,16 @@ def generate_novice_demos(env, demos):
     demonstrations = []
     demo_returns = []
 
-    for checkpoint in checkpoints:
+    for index, checkpoint in enumerate(checkpoints):
         policy = mlp(sizes=[obs_dim] + hidden_sizes + [n_acts])
-        # policy.load_state_dict(torch.load(checkpoint))
-        traj, ret = generate_rollout(None, env, demos)
+        policy.load_state_dict(torch.load(checkpoint))
+        traj, ret = generate_rollout_1(policy, env, index + 1)
+        # traj, ret = generate_rollout_ppo_sgd(index + 1)
+        print("traj ground-truth return", ret)
         demonstrations.append(traj)
         demo_returns.append(ret)
 
     return demonstrations, demo_returns
-
-
-def create_training_data_human(human_demonstrations):
-    training_pairs = []
-    training_labels = []
-
-    for _ in range(len(human_demonstrations)):
-        ti = 0
-        tj = 0
-
-        # only add trajectories that are different returns
-        while ti == tj:
-            # pick two random demonstrations
-            ti = np.random.randint(len(human_demonstrations))
-            tj = np.random.randint(len(human_demonstrations))
-        # create random partial trajs by finding random start frame and random skip frame
-
-        traj_i = human_demonstrations[ti][0]
-        traj_j = human_demonstrations[tj][0]
-
-        if human_demonstrations[ti][1] > human_demonstrations[tj][1]:
-            label = 0
-        else:
-            label = 1
-
-        training_pairs.append((traj_i, traj_j))
-        training_labels.append(label)
-
-    return training_pairs, training_labels
 
 
 def create_training_data(trajectories, cum_returns, num_pairs):
@@ -98,10 +63,14 @@ def create_training_data(trajectories, cum_returns, num_pairs):
         traj_i = trajectories[ti]
         traj_j = trajectories[tj]
 
-        if cum_returns[ti] > cum_returns[tj]:
+        comparison_selection = choice([ti, tj])
+
+        if comparison_selection == ti:
             label = 0
         else:
             label = 1
+        # print(cum_returns[ti], cum_returns[tj])
+        # print(label)
 
         training_pairs.append((traj_i, traj_j))
         training_labels.append(label)
@@ -168,26 +137,128 @@ def learn_reward(
 
     # After training we save the reward function weights
     print("check pointing")
-    torch.save(reward_net.state_dict(), checkpoint_dir)
+    torch.save(reward_network.state_dict(), checkpoint_dir)
     print("finished training")
 
 
-if __name__ == "__main__":
-    human_trajectories = list()
-    for index in range(num_human_demonstrations_for_comparisons):
-        env, demos = collect_human_demos(1, "human", index + 1)
-        trajectories, traj_returns = get_demonstrations_with_returns(env, demos)
-        human_trajectories.append((trajectories, traj_returns))
+def get_store_novice_demonstrations():
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
+    env.reset()
 
-    traj_pairs, traj_labels = create_training_data_human(human_trajectories)
+    trajectories, traj_returns = generate_novice_demos(env)
 
+    json_data = {
+        "trajectories": trajectories,
+        "returns": traj_returns,
+    }
+
+    with open("data/trajectory_data.json", "w") as data_file:
+        json.dump(json_data, data_file)
+
+
+def generate_training_data():
+    # TODO: hyper parameters that you may want to tweak or change
     num_iter = 100
     lr = 0.001
     checkpoint = "./reward.params"  # where to save your reward function weights
 
+    # Now we create a reward network and optimize it using the training data.
+    # TODO: You will need to code up Net in utils.py
     device = "cpu"
     reward_net = Net()
     reward_net.to(device)
+
+    print("Reward nets", reward_net)
+
+    import torch.optim as optim
+
+    optimizer = optim.Adam(reward_net.parameters(), lr=lr)
+
+    with open("data/trajectory_data.json", "r") as data_file:
+        trajectory_data = json.load(data_file)
+        trajectories = trajectory_data["trajectories"]
+        returns = trajectory_data["returns"]
+
+    with open("data/comparisons_preferences.json", "r") as data_file:
+        human_preference_choices = json.load(data_file)
+        human_preferences = human_preference_choices["preferences"]
+        human_preferences = [
+            (int(x) - 1, int(y) - 1)
+            for x, y in [item.strip("()").split(",") for item in human_preferences]
+        ]
+
+    training_pairs = []
+    training_labels = []
+
+    # add pairwise preferences over full trajectoriess
+    for demonstration_a, demonstration_b in human_preferences:
+        ti = demonstration_a
+        tj = demonstration_b
+
+        traj_i = trajectories[ti]
+        traj_j = trajectories[tj]
+
+        if int(demonstration_a) == ti:
+            label = 0
+        else:
+            label = 1
+
+        training_pairs.append((traj_i, traj_j))
+        training_labels.append(label)
+
+    return [
+        reward_net,
+        optimizer,
+        training_pairs,
+        training_labels,
+        num_iter,
+        checkpoint,
+    ]
+
+
+def learn_reward_function(
+    reward_net,
+    optimizer,
+    training_pairs,
+    training_labels,
+    num_iter,
+    checkpoint,
+):
+    learn_reward(
+        reward_net,
+        optimizer,
+        training_pairs,
+        training_labels,
+        num_iter,
+        checkpoint,
+    )
+
+
+if __name__ == "__main__":
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
+    env.reset()
+
+    num_pairs = 20
+    # create synthetic trajectories for RLHF
+    trajectories, traj_returns = generate_novice_demos(env)
+
+    # create pairwise preference data using ground-truth reward
+    traj_pairs, traj_labels = create_training_data(
+        trajectories, traj_returns, num_pairs
+    )
+
+    # TODO: hyper parameters that you may want to tweak or change
+    num_iter = 100
+    lr = 0.001
+    checkpoint = "./reward.params"  # where to save your reward function weights
+
+    # Now we create a reward network and optimize it using the training data.
+    # TODO: You will need to code up Net in utils.py
+    device = "cpu"
+    reward_net = Net()
+    reward_net.to(device)
+
+    print("Reward nets", reward_net)
 
     import torch.optim as optim
 

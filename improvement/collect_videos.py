@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.optim import Adam
 import numpy as np
 import pygame
+
 # import gymnasium as gym
 import gym
 import gym.error
@@ -24,7 +25,7 @@ except ImportError:
 def collect_human_demos(num_demos, demo_type, index):
     mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 2}
 
-    env = gym.make("CartPole-v0", render_mode="rgb_array")
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
     state = env.reset()
     demos = collect_demos(
         env,
@@ -82,7 +83,10 @@ def collect_demos(
     total_reward = 0
     sas_pairs = ["{0}_video_{1}.mp4".format(demo_type, index)]
     video = VideoRecorder(
-        env, "/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data/{0}_video_{1}.mp4".format(demo_type, index)
+        env,
+        "/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data/{0}_video_{1}.mp4".format(
+            demo_type, index
+        ),
     )
     while episodes < num_demos:
         if done:
@@ -208,14 +212,17 @@ class PlayableGame:
             self.video_size = event.size
             self.screen = pygame.display.set_mode(self.video_size)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     sas_pairs = []
     for i in range(5):
         sas_pairs.append(collect_human_demos(1, "improvement", i))
 
     print(sas_pairs)
-    file = open('/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data/improvement_sas.txt','w')
+    file = open(
+        "/Users/u1452582/Desktop/Human_AI_Alignment/the-rlhf-repository/improvement/improvement_data/improvement_sas.txt",
+        "w",
+    )
     for x in sas_pairs:
-        file.write(x+"\n")
+        file.write(x + "\n")
     file.close()
