@@ -160,3 +160,6 @@ cython_debug/
 #.idea/
 
 comparisons_data
+synthetic
+rlhf
+data

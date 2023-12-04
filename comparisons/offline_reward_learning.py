@@ -6,77 +6,35 @@ import torch.nn.functional as F
 import time
 import numpy as np
 import random
-from rollout_policy import (
-    generate_rollout,
-    get_cumulative_rewards_from_human_demonstrations,
-)
-from utils import mlp, Net, collect_human_demos
-from constants import (
-    num_human_demonstrations_for_comparisons,
-    num_synthetic_demonstrations_for_comparisons,
-)
+from rollout_policy import generate_rollout, generate_rollout_1
+from utils import mlp, Net
 
 
-def get_demonstrations_with_returns(env, demos):
-    episode, episode_returns = get_cumulative_rewards_from_human_demonstrations(
-        env, demos
-    )
-    return episode, episode_returns
-
-
-def generate_novice_demos(env, demos):
+def generate_novice_demos(env):
     checkpoints = []
     for i in range(10):
         checkpoints.append("./synthetic/policy_checkpoint" + str(i) + ".params")
 
     # make core of policy network
-    # env = gym.make("MountainCar-v0")
-    env = gym.make("MountainCar-v0", render_mode="rgb_array")
+    env = gym.make("CartPole-v1")
     obs_dim = env.observation_space.shape[0]
     n_acts = env.action_space.n
     hidden_sizes = [32]
-    device = "cpu"
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     demonstrations = []
     demo_returns = []
 
-    for checkpoint in checkpoints:
+    for index, checkpoint in enumerate(checkpoints):
         policy = mlp(sizes=[obs_dim] + hidden_sizes + [n_acts])
-        # policy.load_state_dict(torch.load(checkpoint))
-        traj, ret = generate_rollout(None, env, demos)
+        policy.load_state_dict(torch.load(checkpoint))
+        # traj, ret = generate_rollout(policy, env)
+        traj, ret = generate_rollout_1(policy, env, index + 1)
+        print("traj ground-truth return", ret)
         demonstrations.append(traj)
         demo_returns.append(ret)
 
     return demonstrations, demo_returns
-
-
-def create_training_data_human(human_demonstrations):
-    training_pairs = []
-    training_labels = []
-
-    for _ in range(len(human_demonstrations)):
-        ti = 0
-        tj = 0
-
-        # only add trajectories that are different returns
-        while ti == tj:
-            # pick two random demonstrations
-            ti = np.random.randint(len(human_demonstrations))
-            tj = np.random.randint(len(human_demonstrations))
-        # create random partial trajs by finding random start frame and random skip frame
-
-        traj_i = human_demonstrations[ti][0]
-        traj_j = human_demonstrations[tj][0]
-
-        if human_demonstrations[ti][1] > human_demonstrations[tj][1]:
-            label = 0
-        else:
-            label = 1
-
-        training_pairs.append((traj_i, traj_j))
-        training_labels.append(label)
-
-    return training_pairs, training_labels
 
 
 def create_training_data(trajectories, cum_returns, num_pairs):
@@ -93,7 +51,7 @@ def create_training_data(trajectories, cum_returns, num_pairs):
             # pick two random demonstrations
             ti = np.random.randint(num_trajs)
             tj = np.random.randint(num_trajs)
-        # create random partial trajs by finding random start frame and random skip frame
+        # create random partial trajs by  random start frame and random skip frame
 
         traj_i = trajectories[ti]
         traj_j = trajectories[tj]
@@ -102,6 +60,15 @@ def create_training_data(trajectories, cum_returns, num_pairs):
             label = 0
         else:
             label = 1
+        # print(cum_returns[ti], cum_returns[tj])
+        # print(label)
+
+        # comparison_selection = choice([ti, tj])
+
+        # if comparison_selection == ti:
+        #     label = 0
+        # else:
+        #     label = 1
 
         training_pairs.append((traj_i, traj_j))
         training_labels.append(label)
@@ -125,7 +92,7 @@ def learn_reward(
     checkpoint_dir,
 ):
     # check if gpu available
-    device = "cpu"
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # We will use a cross entropy loss for pairwise preference learning
     loss_criterion = nn.CrossEntropyLoss()
@@ -173,21 +140,29 @@ def learn_reward(
 
 
 if __name__ == "__main__":
-    human_trajectories = list()
-    for index in range(num_human_demonstrations_for_comparisons):
-        env, demos = collect_human_demos(1, "human", index + 1)
-        trajectories, traj_returns = get_demonstrations_with_returns(env, demos)
-        human_trajectories.append((trajectories, traj_returns))
+    env = gym.make("CartPole-v1")
 
-    traj_pairs, traj_labels = create_training_data_human(human_trajectories)
+    num_pairs = 20
+    # create synthetic trajectories for RLHF
+    trajectories, traj_returns = generate_novice_demos(env)
 
+    # create pairwise preference data using ground-truth reward
+    traj_pairs, traj_labels = create_training_data(
+        trajectories, traj_returns, num_pairs
+    )
+
+    # TODO: hyper parameters that you may want to tweak or change
     num_iter = 100
     lr = 0.001
     checkpoint = "./reward.params"  # where to save your reward function weights
 
-    device = "cpu"
+    # Now we create a reward network and optimize it using the training data.
+    # TODO: You will need to code up Net in utils.py
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     reward_net = Net()
     reward_net.to(device)
+
+    print("Reward nets", reward_net)
 
     import torch.optim as optim
 

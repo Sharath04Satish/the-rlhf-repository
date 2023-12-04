@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename= 'css/style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Inter"
+    />
+    <title>FlaskBlog</title>
+  </head>
+  <body>
+    <div id="main-container">
+      <h1>Reinforcement Learning from Human Feedback - Comparisons</h1>
+      {% for instance, demonstration_a_index, demonstration_a,
+      demonstration_b_index, demonstration_b in comparison_videos %}
+      <div id="container">
+        <h1>New Instance</h1>
+        <div id="views">
+          <div id="left-view">
+            <h2>Demonstration A</h2>
+            <div class="video-container">
+              <video
+                width="640"
+                height="480"
+                src="{{demonstration_a}}"
+                type="video/mp4"
+                controls
+                autoplay
+              >
+                Sorry, we are unable to play the video right now.
+              </video>
+            </div>
+          </div>
+          <div id="right-view">
+            <h2>Demonstration B</h2>
+            <div class="video-container">
+              <video
+                width="640"
+                height="480"
+                src="{{demonstration_b}}"
+                controls
+                autoplay
+                type="video/mp4"
+              >
+                Sorry, we are unable to play the video right now.
+              </video>
+            </div>
+          </div>
+        </div>
+        <div id="button-container">
+          <form action="/" method="post">
+            <button
+              name="{{instance}}"
+              value="{{demonstration_a_index, demonstration_b_index}}"
+              class="btn-controls"
+            >
+              Demonstration A is better
+            </button>
+            <button name="{{instance}}" value="0" class="btn-controls">
+              I cannot tell the difference
+            </button>
+            <button
+              name="{{instance}}"
+              value="{{demonstration_a_index, demonstration_b_index}}"
+              class="btn-controls"
+            >
+              Demonstration B is better
+            </button>
+          </form>
+        </div>
+      </div>
+      <hr />
+      {% endfor %}
+    </div>
+  </body>
+</html>
