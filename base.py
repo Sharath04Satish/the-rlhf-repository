@@ -7,6 +7,8 @@ import torch
 import subprocess
 from pyfiglet import Figlet
 import warnings
+import os
+import webbrowser
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="teleop")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
@@ -44,7 +46,8 @@ if __name__ == "__main__":
     # Comparisons
     elif feedback_type == "C":
         # Call the comparison python script
-        pass
+        os.chdir("web_app")
+        subprocess.call(['python', '-m', 'flask', 'run'])
         
 
     # Off

@@ -6,7 +6,7 @@ import json
 app = Flask(__name__)
 
 counter = 1
-txt_file = open("../comparisons/data/comparisons_preferences.txt", "w")
+# txt_file = open("../comparisons/data/comparisons_preferences.txt", "w")
 preferences = list()
 
 
