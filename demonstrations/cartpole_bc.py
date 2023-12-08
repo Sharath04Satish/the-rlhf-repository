@@ -94,18 +94,18 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     }
 
     def __init__(self, render_mode: Optional[str] = None):
-        self.gravity = 0.25
+        self.gravity = 0.25 # Changed
         self.masscart = 1.0
         self.masspole = 0.1
         self.total_mass = self.masspole + self.masscart
-        self.length = 0.5  # actually half the pole's length
+        self.length = 0.5
         self.polemass_length = self.masspole * self.length
-        self.force_mag = 10.0
-        self.tau = 0.02  # seconds between state updates
+        self.force_mag = 5.0 # Changed
+        self.tau = 0.02 
         self.kinematics_integrator = "euler"
 
         # Angle at which to fail the episode
-        self.theta_threshold_radians = 72 * 2 * math.pi / 360
+        self.theta_threshold_radians = 72 * 2 * math.pi / 360 # Changed
         self.x_threshold = 2.4
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
