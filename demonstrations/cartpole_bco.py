@@ -441,9 +441,9 @@ if __name__ == "__main__":
     #check performance for debugging
     outputs = inv_dyn(s_s2_torch[:10])
     _, predicted = torch.max(outputs, 1)
-    print("checking predictions on first 10 actions from random interaction data")
-    print("predicted actions", predicted)
-    print("actual actions", acs[:10])
+    # print("checking predictions on first 10 actions from random interaction data")
+    # print("predicted actions", predicted)
+    # print("actual actions", acs[:10])
 
     #collect human demos
     demos = collect_human_demos(args.num_demos)
@@ -456,9 +456,9 @@ if __name__ == "__main__":
     outputs = inv_dyn(state_trans)
     _, acs = torch.max(outputs, 1)
     #check accuracy on demos for debugging
-    print("checking predicted demonstrator actions with actual actions from demonstrations")
-    print("predicted", acs[:20])
-    print("actual", acs_true[:20])
+    # print("checking predicted demonstrator actions with actual actions from demonstrations")
+    # print("predicted", acs[:20])
+    # print("actual", acs_true[:20])
 
     #train policy using predicted actions for states
     pi = PolicyNetwork()
