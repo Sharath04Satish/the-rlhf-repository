@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename= 'css/style.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Inter"
+    />
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <title>RLHF</title>
+  </head>
+  <body>
+    <div id="main-container">
+      <h1>Reinforcement Learning from Human Feedback - Improvement</h1>
+      <p>
+        These are five random synthetic demonstration. Take a look at these
+        demonstrations and improve it by providing better demonstrations.
+      </p>
+      {% for instance, _, demonstration_a in comparison_videos %}
+      <div id="container">
+        <div id="views">
+          <div class="video-container">
+            <video
+              width="640"
+              height="480"
+              src="{{demonstration_a}}"
+              type="video/mp4"
+              controls
+              autoplay
+            >
+              Sorry, we are unable to play the video right now.
+            </video>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div id="button-container">
+        <form action="/improvement" method="post">
+          <button name="{{instance}}" class="btn-controls">
+            Provide demonstrations
+          </button>
+        </form>
+      </div>
+      <p>*The next page is under development as of now.</p>
+    </div>
+
+    <script>
+      $(document).ready(function () {
+        $(".btn-controls").on("click", function () {
+          $.ajax({
+            url: "/shutdown",
+            type: "GET",
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

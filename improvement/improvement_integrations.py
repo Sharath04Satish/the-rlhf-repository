@@ -6,7 +6,7 @@ while True:
     try:
         option = int(
             input(
-                "Select an option\nEnter 1 for generating synthetic demonstrations\nEnter 2 for creating training data and learn reward function \n"
+                "Select an option\nEnter 1 for creating training data and learn reward function \n"
             )
         )
         break
@@ -14,8 +14,6 @@ while True:
         print("Let's try that one more time.")
 
 if option == 1:
-    get_store_novice_demonstrations()
-elif option == 2:
     (
         reward_net,
         optimizer,

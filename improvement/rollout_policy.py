@@ -12,6 +12,24 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 
 
+def get_cumulative_rewards_from_human_demonstrations(env, demos, rendering=False):
+    obs = env.reset()
+
+    cum_ret = 0
+    obs_traj = []
+    human_actions = [action for _, action, _ in demos]
+
+    for action in human_actions:
+        if rendering:
+            env.render()
+
+        obs, rew, _, _, _ = env.step(action)
+        cum_ret += rew
+        obs_traj.append(obs)
+
+    return obs_traj, cum_ret
+
+
 def generate_rollout_ppo_sgd(index):
     cum_ret = 0
     obs_traj = []
