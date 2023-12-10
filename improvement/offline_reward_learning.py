@@ -10,10 +10,29 @@ from rollout_policy import (
     generate_rollout,
     generate_rollout_ppo_sgd,
     generate_rollout_1,
+    get_cumulative_rewards_from_human_demonstrations,
 )
 from utils import mlp, Net
 from random import choice
 import json
+from utils import collect_human_demos
+
+
+def get_demonstrations_with_returns(env, demos):
+    episode, episode_returns = get_cumulative_rewards_from_human_demonstrations(
+        env, demos
+    )
+    return episode, episode_returns
+
+
+def get_human_demos():
+    human_trajectories = list()
+    for index in range(5):
+        env, demos = collect_human_demos(1, "human", index + 1)
+        trajectories, traj_returns = get_demonstrations_with_returns(env, demos)
+        human_trajectories.append((trajectories, traj_returns))
+
+    return human_trajectories
 
 
 def generate_novice_demos(env):
@@ -152,7 +171,7 @@ def get_store_novice_demonstrations():
         "returns": traj_returns,
     }
 
-    with open("data/trajectory_data.json", "w") as data_file:
+    with open("../comparisons/data/trajectory_data.json", "w") as data_file:
         json.dump(json_data, data_file)
 
 
@@ -174,37 +193,28 @@ def generate_training_data():
 
     optimizer = optim.Adam(reward_net.parameters(), lr=lr)
 
-    with open("data/trajectory_data.json", "r") as data_file:
+    human_trajectories = get_human_demos()
+    print(human_trajectories)
+
+    with open("../comparisons/data/trajectory_data.json", "r") as data_file:
         trajectory_data = json.load(data_file)
         trajectories = trajectory_data["trajectories"]
         returns = trajectory_data["returns"]
 
-    with open("data/comparisons_preferences.json", "r") as data_file:
+    with open("data/improvement_indices.json", "r") as data_file:
         human_preference_choices = json.load(data_file)
-        human_preferences = human_preference_choices["preferences"]
-        human_preferences = [
-            (int(x) - 1, int(y) - 1)
-            for x, y in [item.strip("()").split(",") for item in human_preferences]
-        ]
+        human_preferences = human_preference_choices["improvement_indices"]
 
     training_pairs = []
     training_labels = []
 
     # add pairwise preferences over full trajectoriess
-    for demonstration_a, demonstration_b in human_preferences:
-        ti = demonstration_a
-        tj = demonstration_b
-
-        traj_i = trajectories[ti]
-        traj_j = trajectories[tj]
-
-        if int(demonstration_a) == ti:
-            label = 0
-        else:
-            label = 1
+    for index in human_preferences:
+        traj_i = trajectories[index]
+        traj_j = human_trajectories[index][1]
 
         training_pairs.append((traj_i, traj_j))
-        training_labels.append(label)
+        training_labels.append(1)
 
     return [
         reward_net,

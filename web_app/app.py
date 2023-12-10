@@ -2,12 +2,14 @@ from flask import Flask, render_template, request
 from constants import num_synthetic_demonstrations
 from random import choice, randint
 import json
+import os
+import signal
 
 app = Flask(__name__)
 
 counter = 1
-# txt_file = open("../comparisons/data/comparisons_preferences.txt", "w")
 preferences = list()
+improvement_indices = list()
 
 
 def generate_unique_random_numbers():
@@ -50,6 +52,31 @@ def get_comparison_videos():
         return comparison_videos
 
 
+def get_single_comparison_videos():
+    comparison_videos = list()
+
+    for _ in range(5):
+        demonstration_a_index = randint(1, 10)
+
+        demonstration_a = (
+            "./static/comparisons_data/synthetic_demonstration_{0}.mp4".format(
+                demonstration_a_index
+            )
+        )
+
+        comparison_videos.append(("instance", demonstration_a_index, demonstration_a))
+
+    for _, index, _ in comparison_videos:
+        improvement_indices.append(index)
+
+    with open("../improvement/data/improvement_indices.json", "w") as data_file:
+        print("L1", improvement_indices)
+        json_data = {"improvement_indices": improvement_indices}
+        json.dump(json_data, data_file)
+
+    return comparison_videos
+
+
 @app.route("/")
 def render_comparisons():
     comparison_videos = get_comparison_videos()
@@ -84,3 +111,37 @@ def handle_comparison_inputs():
             json.dump(json_data, data_file)
 
         return "Thank you for your inputs. Please run integrations.py to create the training data and learn a reward function."
+
+
+@app.route("/improvement", methods=["POST"])
+def handle_improvement_inputs():
+    global improvement_indices
+    print("L1")
+    with open("../improvement/data/improvement_indices.json", "w") as data_file:
+        print("L1", improvement_indices)
+        json_data = {"improvement_indices": improvement_indices}
+        json.dump(json_data, data_file)
+
+    os.kill(os.getpid(), signal.SIGINT)
+
+    return "Thank you for your input. Please run integrations.py to create the training data and learn a reward function."
+
+
+@app.route("/improvement")
+def render_random_trajectories_imprv():
+    comparison_videos = get_single_comparison_videos()
+    print(comparison_videos)
+    return render_template("improvements.html", comparison_videos=comparison_videos)
+
+
+@app.route("/shutdown")
+def shutdown():
+    os.kill(os.getpid(), signal.SIGINT)
+    return "Server shutting down..."
+
+
+def shutdown_server():
+    func = request.environ.get("werkzeug.server.shutdown")
+    if func is None:
+        raise RuntimeError("Not running with the Werkzeug Server")
+    func()
