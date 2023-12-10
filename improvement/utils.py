@@ -391,7 +391,7 @@ def collect_human_demos(num_demos, demo_type, index):
     env = CartPoleEnv(render_mode="rgb_array")
     env.reset()
 
-    demos = collect_demos(
+    demos, return_from_demonstration = collect_demos(
         env,
         demo_type=demo_type,
         index=index,
@@ -402,7 +402,7 @@ def collect_human_demos(num_demos, demo_type, index):
 
     env.close()
 
-    return [env, demos]
+    return [env, demos, return_from_demonstration]
 
 
 def collect_demos(
@@ -487,7 +487,7 @@ def collect_demos(
     # video.close()
     env.close()
 
-    return sas_pairs
+    return sas_pairs, total_reward
 
 
 def display_arr(

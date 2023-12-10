@@ -14,16 +14,20 @@ while True:
         print("Let's try that one more time.")
 
 if option == 1:
-    (
-        reward_net,
-        optimizer,
-        training_pairs,
-        training_labels,
-        num_iter,
-        checkpoint,
-    ) = generate_training_data()
-    learn_reward_function(
-        reward_net, optimizer, training_pairs, training_labels, num_iter, checkpoint
-    )
+    value = generate_training_data()
+
+    if value != False:
+        (
+            reward_net,
+            optimizer,
+            training_pairs,
+            training_labels,
+            num_iter,
+            checkpoint,
+        ) = generate_training_data()
+
+        learn_reward_function(
+            reward_net, optimizer, training_pairs, training_labels, num_iter, checkpoint
+        )
 else:
     print("Let's try that one more time!")
