@@ -1,2 +1,3 @@
 num_human_demonstrations_for_comparisons = 5
 num_synthetic_demonstrations_for_comparisons = 10
+threshold_improved_demos = 2

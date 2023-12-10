@@ -16,6 +16,7 @@ from utils import mlp, Net
 from random import choice
 import json
 from utils import collect_human_demos
+from constants import threshold_improved_demos
 
 
 def get_demonstrations_with_returns(env, demos):
@@ -28,7 +29,7 @@ def get_demonstrations_with_returns(env, demos):
 def get_human_demos():
     human_trajectories = list()
     for index in range(5):
-        env, demos = collect_human_demos(1, "human", index + 1)
+        env, demos, _ = collect_human_demos(1, "human", index + 1)
         trajectories, traj_returns = get_demonstrations_with_returns(env, demos)
         human_trajectories.append((trajectories, traj_returns))
 
@@ -194,7 +195,6 @@ def generate_training_data():
     optimizer = optim.Adam(reward_net.parameters(), lr=lr)
 
     human_trajectories = get_human_demos()
-    print(human_trajectories)
 
     with open("../comparisons/data/trajectory_data.json", "r") as data_file:
         trajectory_data = json.load(data_file)
@@ -202,28 +202,62 @@ def generate_training_data():
         returns = trajectory_data["returns"]
 
     with open("data/improvement_indices.json", "r") as data_file:
-        human_preference_choices = json.load(data_file)
-        human_preferences = human_preference_choices["improvement_indices"]
+        random_demonstrations = json.load(data_file)
+        random_demonstrations = random_demonstrations["improvement_indices"]
 
     training_pairs = []
     training_labels = []
 
-    # add pairwise preferences over full trajectoriess
-    for index in human_preferences:
-        traj_i = trajectories[index]
-        traj_j = human_trajectories[index][1]
-
-        training_pairs.append((traj_i, traj_j))
-        training_labels.append(1)
-
-    return [
-        reward_net,
-        optimizer,
-        training_pairs,
-        training_labels,
-        num_iter,
-        checkpoint,
+    returns_random_demos = [
+        value for index, value in enumerate(returns) if index in random_demonstrations
     ]
+
+    returns_human_demos = [value for _, value in human_trajectories]
+
+    improvement_avg_return_condition = np.mean(returns_random_demos) > np.mean(
+        returns_human_demos
+    )
+    improvement_min_max_return_condition = (
+        True if max(returns_human_demos) < min(returns_random_demos) else False
+    )
+    improvement_threshold_condition = (
+        True
+        if sum(value > max(returns_random_demos) for value in returns_human_demos) < 2
+        else False
+    )
+
+    if (
+        improvement_avg_return_condition
+        or improvement_min_max_return_condition
+        or improvement_threshold_condition
+    ):
+        print("Please provide better human demonstrations to improve the model")
+        return False
+    else:
+        # add pairwise preferences over full trajectories
+        improved_human_demonstrations = [
+            h_demonstration
+            for h_demonstration, h_returns in human_trajectories
+            if h_returns > max(returns_random_demos)
+        ]
+
+        for index in random_demonstrations:
+            traj_i = trajectories[index]
+            traj_j = improved_human_demonstrations[
+                random.randint(0, len(improved_human_demonstrations) - 1)
+            ]
+
+            training_pairs.append((traj_i, traj_j))
+            training_labels.append(1)
+
+        return [
+            reward_net,
+            optimizer,
+            training_pairs,
+            training_labels,
+            num_iter,
+            checkpoint,
+        ]
 
 
 def learn_reward_function(

@@ -17,10 +17,9 @@ def reward_to_go(rews):
     return rtgs
 
 
-# function to train a vanilla policy gradient agent. 
+# function to train a vanilla policy gradient agent. By default designed to work with Acrobot
 def train(
-    # env_name="MountainCar-v0",
-    env_name="MountainCar-v0",
+    env_name="CartPole-v1",
     hidden_sizes=[32],
     lr=1e-2,
     epochs=50,
@@ -73,6 +72,8 @@ def train(
 
         # reset episode-specific variables
         obs = env.reset()  # first obs comes from starting distribution
+        if type(obs) is tuple:
+            obs = obs[0]
         done = False  # signal from environment that episode is over
         ep_rews = []  # list for rewards accrued throughout ep
 
@@ -85,20 +86,22 @@ def train(
             if (not finished_rendering_this_epoch) and render:
                 env.render()
 
+            if type(obs) is tuple:
+                obs = obs[0]
             # save obs
             batch_obs.append(obs.copy())
 
             # act in the environment
             act = get_action(torch.as_tensor(obs, dtype=torch.float32))
-            obs, rew, done, _ = env.step(act)
+            obs, rew, done, _, _ = env.step(act)
 
-            device = "cpu"
+            device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             torchified_state = torch.from_numpy(obs).float().to(device)
             # print("Trajectories", torchified_state.unsqueeze(0))
 
             if reward is not None:
                 # replace reward with predicted reward from neural net
-                device = "cpu"
+                device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
                 torchified_state = torch.from_numpy(obs).float().to(device)
                 r = reward.predict_reward(torchified_state.unsqueeze(0)).item()
                 rew = r
@@ -169,7 +172,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env_name", "--env", type=str, default="MountainCar-v0")
+    parser.add_argument("--env_name", "--env", type=str, default="CartPole-v1")
     parser.add_argument("--render", action="store_true")
     parser.add_argument("--lr", type=float, default=1e-2)
     parser.add_argument("--epochs", type=int, default=10)
@@ -202,7 +205,7 @@ if __name__ == "__main__":
     else:
         # pass in parameters for trained reward network and train using that
         print("training on learned reward function")
-        device = "cpu"
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         reward_net = Net()
         reward_net.load_state_dict(torch.load(args.reward_params))
         reward_net.to(device)
