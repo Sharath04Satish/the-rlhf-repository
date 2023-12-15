@@ -67,7 +67,7 @@ def get_single_comparison_videos():
         comparison_videos.append(("instance", demonstration_a_index, demonstration_a))
 
     for _, index, _ in comparison_videos:
-        improvement_indices.append(index)
+        improvement_indices.append(index - 1)
 
     with open("../improvement/data/improvement_indices.json", "w") as data_file:
         print("L1", improvement_indices)
@@ -118,7 +118,6 @@ def handle_improvement_inputs():
     global improvement_indices
     print("L1")
     with open("../improvement/data/improvement_indices.json", "w") as data_file:
-        print("L1", improvement_indices)
         json_data = {"improvement_indices": improvement_indices}
         json.dump(json_data, data_file)
 
