@@ -1,33 +1,43 @@
-from offline_reward_learning import get_store_novice_demonstrations
-from offline_reward_learning import generate_training_data
-from offline_reward_learning import learn_reward_function
+import subprocess
+from offline_reward_learning import generate_training_data, learn_reward_function
 
-while True:
-    try:
-        option = int(
-            input(
-                "Select an option\nEnter 1 for creating training data and learn reward function \n"
-            )
-        )
-        break
-    except:
-        print("Let's try that one more time.")
+value = generate_training_data()
 
-if option == 1:
-    value = generate_training_data()
+if value != False:
+    (
+        reward_net,
+        optimizer,
+        training_pairs,
+        training_labels,
+        num_iter,
+        checkpoint,
+    ) = value
 
-    if value != False:
-        (
-            reward_net,
-            optimizer,
-            training_pairs,
-            training_labels,
-            num_iter,
-            checkpoint,
-        ) = generate_training_data()
+    learn_reward_function(
+        reward_net, optimizer, training_pairs, training_labels, num_iter, checkpoint
+    )
 
-        learn_reward_function(
-            reward_net, optimizer, training_pairs, training_labels, num_iter, checkpoint
-        )
-else:
-    print("Let's try that one more time!")
+    subprocess.call(
+        [
+            "python3",
+            "improvement/vpg.py",
+            "--epochs",
+            "50",
+            "--checkpoint",
+            "--reward",
+            "improvement/reward.params",
+            "--checkpoint_dir",
+            "improvement/rlhf",
+        ]
+    )
+    subprocess.call(
+        [
+            "python3",
+            "improvement/rollout_policy.py",
+            "--checkpoint",
+            "improvement/rlhf/policy_checkpoint49.params",
+            "--num_rollouts",
+            "5",
+            "--render",
+        ]
+    )
