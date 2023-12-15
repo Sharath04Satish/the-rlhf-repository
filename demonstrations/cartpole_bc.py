@@ -14,6 +14,7 @@ import numpy as np
 from gym import logger, spaces
 from gym.envs.classic_control import utils
 from gym.error import DependencyNotInstalled
+import subprocess
 
 # Suppress the specific DeprecationWarning in Gym
 # Suppress all DeprecationWarnings
@@ -94,18 +95,18 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     }
 
     def __init__(self, render_mode: Optional[str] = None):
-        self.gravity = 0.25 # Changed
+        self.gravity = 0.25  # Changed
         self.masscart = 1.0
         self.masspole = 0.1
         self.total_mass = self.masspole + self.masscart
         self.length = 0.5
         self.polemass_length = self.masspole * self.length
-        self.force_mag = 5.0 # Changed
-        self.tau = 0.02 
+        self.force_mag = 5.0  # Changed
+        self.tau = 0.02
         self.kinematics_integrator = "euler"
 
         # Angle at which to fail the episode
-        self.theta_threshold_radians = 72 * 2 * math.pi / 360 # Changed
+        self.theta_threshold_radians = 72 * 2 * math.pi / 360  # Changed
         self.x_threshold = 2.4
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
@@ -215,11 +216,6 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
 
     def render(self):
         if self.render_mode is None:
-            gym.logger.warn(
-                "You are calling render method without specifying any render mode. "
-                "You can specify the render_mode at initialization, "
-                f'e.g. gym("{self.spec.id}", render_mode="rgb_array")'
-            )
             return
 
         try:
@@ -319,15 +315,12 @@ class CartPoleEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
             self.isopen = False
 
 
-
-
-device = torch.device('cpu')
+device = torch.device("cpu")
 
 
 def collect_human_demos(num_demos):
     mapping = {(pygame.K_LEFT,): 0, (pygame.K_RIGHT,): 1}
-    # env = gym.make("CartPole-v1",render_mode='rgb_array', max_episode_steps=500) 
-    env = CartPoleEnv(render_mode='rgb_array')
+    env = CartPoleEnv(render_mode="rgb_array")
     demos = collect_demos(env, keys_to_action=mapping, num_demos=num_demos, noop=1)
     return demos
 
@@ -336,8 +329,8 @@ def torchify_demos(sas_pairs):
     states = []
     actions = []
     next_states = []
-    
-    for s,a, s2 in sas_pairs:
+
+    for s, a, s2 in sas_pairs:
         states.append(s)
         actions.append(a)
         next_states.append(s2)
@@ -348,11 +341,8 @@ def torchify_demos(sas_pairs):
     next_states = np.array(next_states)
 
     obs_torch = torch.from_numpy(np.array(states)).float().to(device)
-    # print(obs_torch)
     obs2_torch = torch.from_numpy(np.array(next_states)).float().to(device)
-    # print(obs2_torch)
     acs_torch = torch.from_numpy(np.array(actions)).long().to(device)
-    # print(acs_torch)
 
     print()
 
@@ -360,64 +350,35 @@ def torchify_demos(sas_pairs):
 
 
 def train_policy(obs, acs, nn_policy, num_train_iters):
-    pi_optimizer = Adam(nn_policy.parameters(), lr=0.1)
-    #action space is discrete so our policy just needs to classify which action to take
-    #we typically train classifiers using a cross entropy loss
+    pi_optimizer = Adam(nn_policy.parameters(), lr=0.01)
     loss_criterion = nn.CrossEntropyLoss()
-    
-    # run BC using all the demos in one giant batch
+
     for i in range(num_train_iters):
-        #zero out automatic differentiation from last time
         pi_optimizer.zero_grad()
-        #run each state in batch through policy to get predicted logits for classifying action
         pred_action_logits = nn_policy(obs)
-        #now compute loss by comparing what the policy thinks it should do with what the demonstrator didd
-        loss = loss_criterion(pred_action_logits, acs) 
-        # print("iteration", i, "bc loss", loss)
-        #back propagate the error through the network to figure out how update it to prefer demonstrator actions
+
+        loss = loss_criterion(pred_action_logits, acs)
         loss.backward()
-        #perform update on policy parameters
         pi_optimizer.step()
 
 
-
 class PolicyNetwork(nn.Module):
-    '''
-        Simple neural network with two layers that maps a 2-d state to a prediction
-        over which of the three discrete actions should be taken.
-        The three outputs corresponding to the logits for a 3-way classification problem.
-
-    '''
     def __init__(self):
         super().__init__()
 
-        #This layer has 2 inputs corresponding to car position and velocity
-        self.fc1 = nn.Linear(4, 8)  
-        #This layer has three outputs corresponding to each of the three discrete actions
+        self.fc1 = nn.Linear(4, 8)
         self.fc2 = nn.Linear(8, 8)
-
-        self.fc3 = nn.Linear(8,2)  
-
-
+        self.fc3 = nn.Linear(8, 2)
 
     def forward(self, x):
-        #this method performs a forward pass through the network, applying a non-linearity (ReLU) on the 
-        #outputs of the first layer
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
 
-    
 
-#evaluate learned policy
 def evaluate_policy(pi, num_evals, human_render=True):
-    # if human_render:
-    #     env = gym.make("CartPole-v1",render_mode='human', max_episode_steps=500) 
-    # else:
-    #     env = gym.make("CartPole-v1", max_episode_steps=500) 
-
-    env = CartPoleEnv(render_mode='human')
+    env = CartPoleEnv(render_mode="human")
 
     policy_returns = []
     for i in range(num_evals):
@@ -425,53 +386,47 @@ def evaluate_policy(pi, num_evals, human_render=True):
         total_reward = 0
         obs = env.reset()[0]
         while not done:
-            #take the action that the network assigns the highest logit value to
-            #Note that first we convert from numpy to tensor and then we get the value of the 
-            #argmax using .item() and feed that into the environment
-
-            print(obs)
-
-            # obs_array = obs[0][:2]  # Assuming the first element is a tuple with 2 elements, take the first element
-            # obs_tensor = torch.from_numpy(obs_array).unsqueeze(0).float()
-            # action = torch.argmax(pi(obs_tensor)).item()
-
             action = torch.argmax(pi(torch.from_numpy(obs).unsqueeze(0))).item()
-            
-            # obs_array = np.concatenate(obs, axis=-1)  # Concatenate along the last axis
-            # obs_tensor = torch.from_numpy(obs_array).unsqueeze(0).float()
-            # action = torch.argmax(pi(obs_tensor)).item()
-
-            # print(action)
             obs, rew, done, info, _ = env.step(action)
-            # print(obs)
             total_reward += rew
-        print("reward for evaluation", i, total_reward)
+        print("The reward for evaluation is,", i, total_reward)
         policy_returns.append(total_reward)
 
-    print("average policy return", np.mean(policy_returns))
-    print("min policy return", np.min(policy_returns))
-    print("max policy return", np.max(policy_returns))
+    print("\nThe minimum policy return is,", np.min(policy_returns))
+    print("The maximum policy return is,", np.max(policy_returns))
+    print("The average policy return is,", np.mean(policy_returns))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=None)
-    parser.add_argument('--num_demos', default = 3, type=int, help="number of human demonstrations to collect")
-    parser.add_argument('--num_bc_iters', default = 100, type=int, help="number of iterations to run BC")
-    parser.add_argument('--num_evals', default=6, type=int, help="number of times to run policy after training for evaluation")
+    parser.add_argument(
+        "--num_demos",
+        default=3,
+        type=int,
+        help="number of human demonstrations to collect",
+    )
+    parser.add_argument(
+        "--num_bc_iters", default=100, type=int, help="number of iterations to run BC"
+    )
+    parser.add_argument(
+        "--num_evals",
+        default=6,
+        type=int,
+        help="number of times to run policy after training for evaluation",
+    )
 
     args = parser.parse_args()
 
-    #collect human demos
     demos = collect_human_demos(args.num_demos)
-
-    #process demos
     obs, acs, _ = torchify_demos(demos)
-    # print(obs.shape[0])
 
-    #train policy
     pi = PolicyNetwork()
     train_policy(obs, acs, pi, args.num_bc_iters)
-
-    #evaluate learned policy
     evaluate_policy(pi, args.num_evals)
 
+    subprocess.call(
+        [
+            "python3",
+            "demonstrations/cartpole_bco.py",
+        ]
+    )
