@@ -35,13 +35,10 @@ if __name__ == "__main__":
     print(
         "For improvement, please take a look at the shown trajectory and try to improve it by demonstrating a better trajectory"
     )
-    print(
-        "For off, please stop the execution of the program when you think the agent is making a mistake\n"
-    )
 
     # Prompt the user to enter the type of feedback
     feedback_type = input(
-        "Enter the type of feedback (Demonstrations: D, Comparisons: C, Improvement: I, Off: O): "
+        "Enter the type of feedback (Demonstrations: D, Comparisons: C, Improvement: I): "
     ).upper()
 
     # Choose the appropriate feedback function based on the provided feedback type
@@ -49,7 +46,7 @@ if __name__ == "__main__":
     # Demonstrations
     if feedback_type == "D":
         # Code to call demonstrations and BCO
-        subprocess.call(["python3", "demonstrations/cartpole_bco.py"])
+        subprocess.call(["python3", "demonstrations/cartpole_bc.py"])
 
     # Comparisons
     elif feedback_type == "C":
@@ -57,13 +54,9 @@ if __name__ == "__main__":
         os.chdir("web_app")
         subprocess.call(["python3", "-m", "flask", "run"])
 
-    # Off
-    elif feedback_type == "O":
-        pass
-
     # Improvement
     elif feedback_type == "I":
-        pass
+        subprocess.call(["python3", "improvement/improvement_integrations.py"])
 
     else:
         print(
