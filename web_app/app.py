@@ -67,10 +67,9 @@ def get_single_comparison_videos():
         comparison_videos.append(("instance", demonstration_a_index, demonstration_a))
 
     for _, index, _ in comparison_videos:
-        improvement_indices.append(index)
+        improvement_indices.append(index - 1)
 
     with open("../improvement/data/improvement_indices.json", "w") as data_file:
-        print("L1", improvement_indices)
         json_data = {"improvement_indices": improvement_indices}
         json.dump(json_data, data_file)
 
@@ -97,7 +96,6 @@ def handle_comparison_inputs():
         counter += 1
         if request.method == "POST":
             button_value = request.form.get("instance")
-            print("Clicked button:", tuple(button_value))
 
             preferences.append(button_value)
 
@@ -110,15 +108,13 @@ def handle_comparison_inputs():
             json_data = {"preferences": preferences}
             json.dump(json_data, data_file)
 
-        return "Thank you for your inputs. Please run integrations.py to create the training data and learn a reward function."
+        return "Thank you for your inputs. Please run base.py again and select input A."
 
 
 @app.route("/improvement", methods=["POST"])
 def handle_improvement_inputs():
     global improvement_indices
-    print("L1")
     with open("../improvement/data/improvement_indices.json", "w") as data_file:
-        print("L1", improvement_indices)
         json_data = {"improvement_indices": improvement_indices}
         json.dump(json_data, data_file)
 
@@ -130,7 +126,6 @@ def handle_improvement_inputs():
 @app.route("/improvement")
 def render_random_trajectories_imprv():
     comparison_videos = get_single_comparison_videos()
-    print(comparison_videos)
     return render_template("improvements.html", comparison_videos=comparison_videos)
 
 

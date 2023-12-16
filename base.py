@@ -1,14 +1,8 @@
 # This is the base file that calls everything
-import string
-import gymnasium
-import pygame
-from demonstrations.teleop import collect_demos
-import torch
 import subprocess
 from pyfiglet import Figlet
 import warnings
 import os
-import webbrowser
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="teleop")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pkg_resources")
@@ -38,7 +32,7 @@ if __name__ == "__main__":
 
     # Prompt the user to enter the type of feedback
     feedback_type = input(
-        "Enter the type of feedback (Demonstrations: D, Comparisons: C, Improvement: I): "
+        "Enter the type of feedback (Demonstrations: D, View Comparisons: C, Run Comparisons: A, View Improvement: I, Run Improvement: B): "
     ).upper()
 
     # Choose the appropriate feedback function based on the provided feedback type
@@ -54,11 +48,20 @@ if __name__ == "__main__":
         os.chdir("web_app")
         subprocess.call(["python3", "-m", "flask", "run"])
 
-    # Improvement
+    elif feedback_type == "A":
+        # Call the comparison python3 script
+        subprocess.call(["python3", "comparisons/integrations.py"])
+
     elif feedback_type == "I":
+        # Call the comparison python3 script
+        os.chdir("web_app")
+        subprocess.call(["python3", "-m", "flask", "run"])
+
+    # Improvement
+    elif feedback_type == "B":
         subprocess.call(["python3", "improvement/improvement_integrations.py"])
 
     else:
         print(
-            "Invalid feedback type. Please choose from (Demonstrations: D, Comparisons: C, off: O, improvement: I)"
+            "Invalid feedback type. Please choose from (Demonstrations: D, Comparisons: C, improvement: I)"
         )

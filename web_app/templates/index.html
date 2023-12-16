@@ -15,10 +15,13 @@
   <body>
     <div id="main-container">
       <h1>Reinforcement Learning from Human Feedback - Comparisons</h1>
+      <p>
+        For demonstrations with regards to Improvement, please navigate to
+        /improvement.
+      </p>
       {% for instance, demonstration_a_index, demonstration_a,
       demonstration_b_index, demonstration_b in comparison_videos %}
       <div id="container">
-        <h1>New Instance</h1>
         <div id="views">
           <div id="left-view">
             <h2>Demonstration A</h2>
@@ -60,9 +63,6 @@
             >
               Demonstration A is better
             </button>
-            <!-- <button name="{{instance}}" value="0" class="btn-controls">
-              I cannot tell the difference
-            </button> -->
             <button
               name="{{instance}}"
               value="{{demonstration_a_index, demonstration_b_index}}"
